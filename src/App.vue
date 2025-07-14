@@ -101,6 +101,10 @@
           </template>
 
           <v-list dense>
+            <v-list-item v-if="userRole === 'user'" to="/my-orders">
+              <v-list-item-icon><v-icon>mdi-history</v-icon></v-list-item-icon>
+              <v-list-item-title>ประวัติการซื้อ</v-list-item-title>
+            </v-list-item>
             <v-list-item @click="logout">
               <v-list-item-icon><v-icon>mdi-logout</v-icon></v-list-item-icon>
               <v-list-item-title>ออกจากระบบ</v-list-item-title>
@@ -149,8 +153,15 @@ export default {
     menuItems() {
       const items = [
         { title: 'หน้าหลัก', to: '/', icon: 'mdi-home' },
-        { title: 'ตะกร้าสินค้า', to: '/cart', icon: 'mdi-cart' } // เปลี่ยน icon เป็น mdi-cart
+        { title: 'ตะกร้าสินค้า', to: '/cart', icon: 'mdi-cart' }
       ]
+      
+      // เพิ่มเมนูสำหรับผู้ใช้งานทั่วไป (User)
+      if (this.userRole === 'user') {
+        items.push(
+          { title: 'ประวัติการซื้อ', to: '/my-orders', icon: 'mdi-history' } // เพิ่มแท็บประวัติการซื้อ
+        )
+      }
       
       // เพิ่มเมนูสำหรับ Admin
       if (this.userRole === 'admin') {
@@ -173,6 +184,7 @@ export default {
         case '/cart': return 'ตะกร้าสินค้า';
         case '/login': return 'เข้าสู่ระบบ';
         case '/register': return 'สมัครสมาชิก';
+        case '/my-orders': return 'ประวัติการซื้อ'; // เพิ่ม title สำหรับหน้าประวัติการซื้อ
         case '/admin/products': return 'จัดการสินค้า';
         case '/admin/orders': return 'จัดการรายการสั่งซื้อ';
         case '/admin/approve': return 'อนุมัติผู้ใช้';
@@ -207,8 +219,6 @@ export default {
     this.refreshKey++; // Ensure components using router-view are re-rendered
   },
   methods: {
-    // This method is now redundant because computed properties and Vuex state handle the user info.
-    // It's still here for reference, but the core logic is in created() and computed properties.
     checkUser() {
       // The user state (isLoggedIn, userName, userRole) is primarily managed by Vuex store.
       // This method ensures that if route changes, the menu items are re-evaluated based on the current user role.

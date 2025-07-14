@@ -7,6 +7,7 @@ import AdminOrder from '@/pages/AdminOrder.vue';
 import Login from '@/pages/Login.vue';
 import Register from '@/pages/Register.vue';
 import AdminApprove from '@/pages/AdminApprove.vue'
+import Orders from '@/pages/Orders.vue';
 
 Vue.use(Router);
 
@@ -31,7 +32,16 @@ export default new Router({
     { 
       path: '/cart', 
       name: 'Cart', 
-      component: Cart 
+      component: Cart ,
+      meta: {
+        requiresAuth: true,
+        title: 'ประวัติการสั่งซื้อ'
+      }
+    },
+    {
+      path: '/my-orders',
+      name: 'Orders',
+      component: Orders
     },
     { 
       path: '/admin/products', 

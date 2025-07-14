@@ -237,19 +237,19 @@ export default {
   data() {
     return {
       dialog: false,
-      confirmToggleDialog: false, // Dialog for confirming toggle active
-      confirmToggleItem: {}, // Item to be toggled
-      search: '', // สำหรับค้นหาใน data-table
-      loading: false, // สำหรับแสดง loading state
-      valid: true, // สำหรับ Vuetify form validation
+      confirmToggleDialog: false,
+      confirmToggleItem: {},
+      search: '',
+      loading: false,
+      valid: true,
       form: {
         _id: null,
         name: '',
         description: '',
         price: 0,
         stock: 0,
-        newImages: [], // สำหรับรูปภาพใหม่ที่จะอัปโหลด
-        existingImages: [] // สำหรับรูปภาพเดิมที่ดึงมาจาก backend
+        newImages: [],
+        existingImages: []
       },
       products: [],
       headers: [
@@ -311,7 +311,7 @@ export default {
         }
         return `http://localhost:3000${imageUrl}`;
       }
-      return `https://via.placeholder.com/60x60/F5F5F5/BDBDBD?text=No+Img`; // Placeholder image
+      return `https://via.placeholder.com/60x60/F5F5F5/BDBDBD?text=No+Img`;
     },
     getExistingImage(imageUrl) {
       if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
@@ -323,16 +323,15 @@ export default {
       this.loading = true;
       try {
         const token = localStorage.getItem('token');
-        const res = await axios.get(`http://localhost:3000/api/v1/products`, { // ใช้ Absolute URL ที่ถูกต้อง
+        const res = await axios.get(`http://localhost:3000/api/v1/products`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        
-        // แก้ไข: เข้าถึงข้อมูลโดยตรงจาก res.data เพราะ API คืนค่าเป็น Array
+
         this.products = res.data.map(product => ({
           ...product,
           isActive: product.isActive !== undefined ? product.isActive : true
         }));
-        
+
       } catch (err) {
         console.error('โหลดสินค้าไม่สำเร็จ:', err);
         this.showSnackbar('โหลดสินค้าไม่สำเร็จ', 'error');
@@ -386,39 +385,57 @@ export default {
       }
 
       const token = localStorage.getItem('token');
-      const formData = new FormData();
-      formData.append('name', this.form.name);
-      formData.append('description', this.form.description);
-      formData.append('price', this.form.price);
-      formData.append('stock', this.form.stock);
-      
-      // สำหรับรูปภาพใหม่
-      if (this.form.newImages && this.form.newImages.length > 0) {
-        for (let file of this.form.newImages) {
-          formData.append('images', file); 
-        }
-      }
-
-      // สำหรับรูปภาพเดิมที่ยังเหลืออยู่ (ถ้ามี)
-      if (this.form.existingImages && this.form.existingImages.length > 0) {
-         formData.append('existingImages', JSON.stringify(this.form.existingImages));
-      } else {
-         formData.append('existingImages', '[]'); 
-      }
-      
       try {
         if (this.form._id) {
-          // แก้ไขสินค้า
-          await axios.put(`http://localhost:3000/api/v1/products/${this.form._id}`, formData, { 
+          // **แก้ไขสินค้า (PUT): ส่งข้อมูลสินค้าเป็น JSON, รูปภาพเป็น FormData แยกต่างหาก**
+          const productData = {
+            name: this.form.name,
+            description: this.form.description,
+            price: this.form.price,
+            stock: this.form.stock,
+            // ส่ง array ของ path รูปภาพเดิมที่เหลืออยู่
+            images: this.form.existingImages
+          };
+
+          // 1. ส่งข้อมูลสินค้า (JSON)
+          await axios.put(`http://localhost:3000/api/v1/products/${this.form._id}`, productData, {
             headers: {
               Authorization: `Bearer ${token}`,
-              'Content-Type': 'multipart/form-data'
+              'Content-Type': 'application/json' // ระบุ Content-Type เป็น JSON
             }
           });
+
+          // 2. ถ้ามีรูปภาพใหม่ที่ต้องการอัปโหลด, ให้ส่งเป็น FormData ไปยัง API แยก หรือใช้ API เดิมถ้า Backend รองรับการอัปเดตแบบนี้
+          // สมมติว่า Backend API สำหรับอัปโหลดรูปภาพใหม่สำหรับสินค้าที่มีอยู่แล้วคือ PUT /api/v1/products/:id/images
+          if (this.form.newImages && this.form.newImages.length > 0) {
+            const imageFormData = new FormData();
+            for (let file of this.form.newImages) {
+              imageFormData.append('images', file);
+            }
+            await axios.put(`http://localhost:3000/api/v1/products/${this.form._id}/images`, imageFormData, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+          }
+
           this.showSnackbar('แก้ไขสินค้าสำเร็จ', 'success');
         } else {
-          // เพิ่มสินค้าใหม่
-          await axios.post('http://localhost:3000/api/v1/products', formData, { 
+          // **เพิ่มสินค้าใหม่ (POST): ส่งข้อมูลและรูปภาพเป็น FormData**
+          const formData = new FormData();
+          formData.append('name', this.form.name);
+          formData.append('description', this.form.description);
+          formData.append('price', this.form.price);
+          formData.append('stock', this.form.stock);
+
+          if (this.form.newImages && this.form.newImages.length > 0) {
+            for (let file of this.form.newImages) {
+              formData.append('images', file);
+            }
+          }
+
+          await axios.post('http://localhost:3000/api/v1/products', formData, {
             headers: {
               Authorization: `Bearer ${token}`,
               'Content-Type': 'multipart/form-data'
@@ -430,9 +447,9 @@ export default {
         this.fetchProducts();
       } catch (err) {
         console.error('บันทึกไม่สำเร็จ:', err);
-        const errorMessage = err.response && err.response.data && err.response.data.message 
-                             ? err.response.data.message 
-                             : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+        const errorMessage = err.response && err.response.data && err.response.data.message
+                               ? err.response.data.message
+                               : 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
         this.showSnackbar(errorMessage, 'error');
       }
     },
@@ -441,25 +458,26 @@ export default {
       this.confirmToggleDialog = true;
     },
     async executeToggleActive() {
-      this.confirmToggleDialog = false; 
+      this.confirmToggleDialog = false;
       const product = this.confirmToggleItem;
       try {
         const token = localStorage.getItem('token');
         const updated = {
           isActive: !product.isActive
         };
-        await axios.put(`http://localhost:3000/api/v1/products/${product._id}`, updated, { 
+        await axios.put(`http://localhost:3000/api/v1/products/${product._id}`, updated, {
           headers: {
-            Authorization: `Bearer ${token}`
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json' // ส่งสถานะ isActive เป็น JSON
           }
         });
         this.showSnackbar(`เปลี่ยนสถานะ "${product.name}" สำเร็จ`, 'success');
         this.fetchProducts();
       } catch (err) {
         console.error('เปลี่ยนสถานะไม่สำเร็จ:', err);
-        const errorMessage = err.response && err.response.data && err.response.data.message 
-                             ? err.response.data.message 
-                             : 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ';
+        const errorMessage = err.response && err.response.data && err.response.data.message
+                               ? err.response.data.message
+                               : 'เกิดข้อผิดพลาดในการเปลี่ยนสถานะ';
         this.showSnackbar(errorMessage, 'error');
       }
     }

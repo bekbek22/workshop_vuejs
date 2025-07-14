@@ -76,7 +76,7 @@
         ยอดรวมทั้งหมด: <span class="primary--text">{{ totalPrice.toLocaleString() }}</span> บาท
       </div>
       <div class="d-flex justify-end">
-        <v-btn color="red" class="text-white mr-4" large @click="confirmClearCart" :disabled="cartItems.length === 0">
+        <v-btn color="red" class="white--text mr-4" large @click="confirmClearCart" :disabled="cartItems.length === 0">
           <v-icon left>mdi-trash-can</v-icon>
           ล้างตะกร้า
         </v-btn>

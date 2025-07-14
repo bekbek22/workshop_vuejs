@@ -94,7 +94,7 @@
             <v-select
               v-model="newStatus"
               :items="statusOptions"
-              label="เลือกสถานะใหม่"
+              item-text="text" item-value="value" label="เลือกสถานะใหม่"
               :rules="[rules.required]"
               outlined
               dense
@@ -151,8 +151,9 @@ export default {
       ],
       statusOptions: [ // ตัวเลือกสถานะ
         { text: 'รอดำเนินการ', value: 'pending' },
+        { text: 'กำลังดำเนินการ', value: 'processing' }, // เพิ่มสถานะ 'processing'
         { text: 'กำลังจัดส่ง', value: 'shipped' },
-        { text: 'สำเร็จ', value: 'completed' },
+        { text: 'จัดส่งแล้ว', value: 'delivered' },     // เพิ่มสถานะ 'delivered'
         { text: 'ยกเลิก', value: 'cancelled' }
       ],
       snackbar: {
@@ -199,17 +200,15 @@ export default {
       this.loading = true;
       try {
         const token = localStorage.getItem('token');
-        // ใช้ Absolute URL เพื่อความชัดเจน หรือใช้ Relative Path ถ้าคุณตั้งค่า axios.defaults.baseURL ไว้แล้ว
         const res = await axios.get('http://localhost:3000/api/v1/orders', { 
           headers: { Authorization: `Bearer ${token}` }
         });
-        // สมมติว่า API คืนค่าเป็น Array ของ Order Objects โดยตรง
         this.orders = res.data; 
       } catch (err) {
         console.error('โหลดรายการสั่งซื้อไม่สำเร็จ:', err.response ? err.response.data : err.message);
         const errorMessage = err.response && err.response.data && err.response.data.message 
-                             ? err.response.data.message 
-                             : 'เกิดข้อผิดพลาดในการโหลดรายการสั่งซื้อ';
+                               ? err.response.data.message 
+                               : 'เกิดข้อผิดพลาดในการโหลดรายการสั่งซื้อ';
         this.showSnackbar(errorMessage, 'error');
         if (err.response && err.response.status === 401) {
           this.$router.push('/login');
@@ -221,8 +220,10 @@ export default {
     getStatusColor(status) {
       switch (status) {
         case 'pending': return 'orange darken-2';
+        case 'processing': return 'purple darken-1'; // สีสำหรับ 'กำลังดำเนินการ'
         case 'shipped': return 'blue darken-2';
-        case 'completed': return 'green darken-2';
+        case 'delivered': return 'green darken-2'; // สีสำหรับ 'จัดส่งแล้ว'
+        case 'completed': return 'teal darken-1'; // เปลี่ยนสี 'completed' ให้แตกต่าง
         case 'cancelled': return 'red darken-2';
         default: return 'grey';
       }
@@ -250,24 +251,41 @@ export default {
       }
 
       const token = localStorage.getItem('token');
+      if (!token) {
+        this.showSnackbar('ไม่พบโทเค็นการยืนยันตัวตน กรุณาเข้าสู่ระบบใหม่', 'error');
+        this.$router.push('/login');
+        return;
+      }
+
+      if (!this.selectedOrder || !this.selectedOrder._id) {
+        this.showSnackbar('ไม่พบข้อมูลคำสั่งซื้อที่เลือก', 'error');
+        return;
+      }
+
       try {
-        await axios.put(`http://localhost:3000/api/v1/orders/${this.selectedOrder._id}/status`, 
-          { status: this.newStatus },
+        const orderIdToUpdate = this.selectedOrder._id;
+
+        const res = await axios.patch(`http://localhost:3000/api/v1/orders/${orderIdToUpdate}/status`, 
+          { status: this.newStatus }, 
           {
             headers: {
-              Authorization: `Bearer ${token}`
+              Authorization: `Bearer ${token}` 
             }
           }
         );
+        console.log(res)
         this.showSnackbar(`อัปเดตสถานะคำสั่งซื้อ #${this.selectedOrder._id.substring(0, 8)}... เป็น "${this.getStatusText(this.newStatus)}" สำเร็จ`, 'success');
-        this.statusDialog = false;
-        this.fetchOrders(); // โหลดรายการสั่งซื้อใหม่เพื่ออัปเดตข้อมูลในตาราง
+        this.statusDialog = false; 
+        this.fetchOrders(); 
       } catch (err) {
         console.error('อัปเดตสถานะไม่สำเร็จ:', err.response ? err.response.data : err.message);
         const errorMessage = err.response && err.response.data && err.response.data.message 
                              ? err.response.data.message 
                              : 'เกิดข้อผิดพลาดในการอัปเดตสถานะ';
         this.showSnackbar(errorMessage, 'error');
+        if (err.response && err.response.status === 401) {
+          this.$router.push('/login');
+        }
       }
     }
   }
